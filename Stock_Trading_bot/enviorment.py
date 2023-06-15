@@ -89,6 +89,7 @@ class TradingEnv(gym.Env):
         self._total_reward = 0.
         self._total_profit = 1.  # unit
         self._first_rendering = True
+        self.trade = False
         self.history = {}
         return self._get_observation()
 
@@ -104,8 +105,8 @@ class TradingEnv(gym.Env):
 
         self._update_profit(action)
 
-        self._position, trade = opposite(self._position, action)
-        if trade:
+        self._position, self.trade = opposite(self._position, action)
+        if self.trade:
             self._last_trade_tick = self._current_tick
 
         self._position_history.append(self._position)
@@ -209,18 +210,14 @@ class TradingEnv(gym.Env):
 
 class StocksEnv(TradingEnv):
 
-    def __init__(self, df, window_size, frame_bound):
+    def __init__(self, df, window_size, frame_bound, bid_percent = 0.003):
         assert len(frame_bound) == 2
 
         self.frame_bound = frame_bound
         super().__init__(df, window_size)
-
-        self.trade_fee_bid_percent = 0.003  # unit
-        self.trade_fee_ask_percent = 0.003
+        self.trade_fee_bid_percent = bid_percent  # unit
+        self.trade_fee_ask_percent = bid_percent
         # # unit
-
-        # self.trade_fee_bid_percent = 0  # unit
-        # self.trade_fee_ask_percent = 0
 
     def _process_data(self):
         start = self.frame_bound[0] - self.window_size
@@ -230,6 +227,7 @@ class StocksEnv(TradingEnv):
         signal_features = self.df.iloc[:, ~self.df.columns.isin(['Date', 'Close'])].to_numpy()[start:end]
         normalized_df = (signal_features - signal_features.min()) / (signal_features.max() - signal_features.min())
 
+        signal_features = normalized_df
         return prices, signal_features
 
     #     def _process_data(self):
@@ -242,29 +240,42 @@ class StocksEnv(TradingEnv):
     #         signal_features = np.column_stack((prices, diff))
 
     #         return prices, signal_features
+    #
+    # def _calculate_reward(self, action):
+    #     step_reward = 0
+    #
+    #     if self.trade:
+    #         current_price = self.prices[self._current_tick]
+    #         last_trade_price = self.prices[self._last_trade_tick]
+    #         price_diff = current_price - last_trade_price
+    #
+    #         if self._position == Positions.Long:
+    #             step_reward += price_diff
+    #         elif self._position == Positions.Short:
+    #             step_reward += -price_diff
+    #
+    #     return step_reward
 
+# This reward function is specified so that it'll consider bid and ask costs
     def _calculate_reward(self, action):
         step_reward = 0
         trade = True
-
         if trade:
             current_price = self.prices[self._current_tick]
             last_trade_price = self.prices[self._last_trade_tick]
-            price_diff = current_price - last_trade_price
+            # price_diff = current_price - last_trade_price
 
             if self._position == Positions.Long:
-                step_reward += price_diff
+                step_reward += current_price*(1-self.trade_fee_bid_percent) - last_trade_price*(1+self.trade_fee_ask_percent)
             elif self._position == Positions.Short:
-                step_reward += -price_diff
+                step_reward += current_price*(1+self.trade_fee_bid_percent) - last_trade_price*(1-self.trade_fee_ask_percent)
 
         return step_reward
-
     # Is this actually correct? reutrn for short shuld be different I suppouse
 
     def _update_profit(self, action):
-        trade = True
 
-        if trade or self._done:
+        if self.trade or self._done:
             current_price = self.prices[self._current_tick]
             last_trade_price = self.prices[self._last_trade_tick]
 
