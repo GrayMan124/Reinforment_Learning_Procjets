@@ -210,7 +210,7 @@ class TradingEnv(gym.Env):
 
 class StocksEnv(TradingEnv):
 
-    def __init__(self, df, window_size, frame_bound, bid_percent = 0.003):
+    def __init__(self, df, window_size, frame_bound, bid_percent = 0.0003):
         assert len(frame_bound) == 2
 
         self.frame_bound = frame_bound
@@ -259,16 +259,15 @@ class StocksEnv(TradingEnv):
 # This reward function is specified so that it'll consider bid and ask costs
     def _calculate_reward(self, action):
         step_reward = 0
-        trade = True
-        if trade:
+        if self.trade:
             current_price = self.prices[self._current_tick]
             last_trade_price = self.prices[self._last_trade_tick]
             # price_diff = current_price - last_trade_price
-
+# there was an error here, short position worked the other way it should KEKW
             if self._position == Positions.Long:
                 step_reward += current_price*(1-self.trade_fee_bid_percent) - last_trade_price*(1+self.trade_fee_ask_percent)
             elif self._position == Positions.Short:
-                step_reward += current_price*(1+self.trade_fee_bid_percent) - last_trade_price*(1-self.trade_fee_ask_percent)
+                step_reward += -1*current_price*(1+self.trade_fee_bid_percent) + last_trade_price*(1-self.trade_fee_ask_percent)
 
         return step_reward
     # Is this actually correct? reutrn for short shuld be different I suppouse
@@ -278,7 +277,7 @@ class StocksEnv(TradingEnv):
         if self.trade or self._done:
             current_price = self.prices[self._current_tick]
             last_trade_price = self.prices[self._last_trade_tick]
-
+            
             if self._position == Positions.Long:
                 shares = (self._total_profit * (1 - self.trade_fee_ask_percent)) / last_trade_price
                 self._total_profit = (shares * (1 - self.trade_fee_bid_percent)) * current_price
