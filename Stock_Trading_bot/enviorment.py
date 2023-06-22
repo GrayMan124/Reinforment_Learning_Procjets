@@ -277,7 +277,7 @@ class StocksEnv(TradingEnv):
         if self.trade or self._done:
             current_price = self.prices[self._current_tick]
             last_trade_price = self.prices[self._last_trade_tick]
-            
+
             if self._position == Positions.Long:
                 shares = (self._total_profit * (1 - self.trade_fee_ask_percent)) / last_trade_price
                 self._total_profit = (shares * (1 - self.trade_fee_bid_percent)) * current_price
