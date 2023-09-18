@@ -264,7 +264,6 @@ class StocksEnv(TradingEnv):
             current_price = self.prices[self._current_tick]
             last_trade_price = self.prices[self._last_trade_tick]
             # price_diff = current_price - last_trade_price
-# there was an error here, short position worked the other way it should KEKW
             if self._position == Positions.Long:
                 step_reward += self.leverge*current_price*(1-self.trade_fee_bid_percent) - last_trade_price*(1+self.trade_fee_ask_percent)
             elif self._position == Positions.Short:
